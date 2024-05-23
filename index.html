@@ -1,72 +1,61 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ESP32 配网</title>
+    <title>ESP32 WiFi Configuration</title>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('form').addEventListener('submit', function(event) {
-                event.preventDefault(); // 阻止表单默认提交行为
-                getPorts().then(ports => {
-                    if (ports.length > 0) {
-                        const port = ports[0]; // 选择第一个端口
-                        connectToESP32(port);
-                    } else {
-                        console.log('No serial ports found.');
-                    }
-                }).catch(error => {
-                    console.error('Error accessing serial ports:', error);
-                });
-            });
+            document.getElementById('configure').addEventListener('click', configureWiFi);
         });
 
-        async function getPorts() {
+        async function configureWiFi() {
             try {
-                return await navigator.serial.getPorts();
-            } catch (error) {
-                throw error;
-            }
-        }
+                // 弹出端口选择对话框
+                const port = await navigator.serial.requestPort();
+                
+                // 打开端口
+                await port.open({ baudRate: 115200 });
+                
+                // 获取用户输入的WiFi信息
+                const ssid = document.getElementById('ssid').value;
+                const password = document.getElementById('password').value;
 
-        async function connectToESP32(port) {
-            try {
-                const options = { baudRate: 115200 };
-                const connection = await port.open(options);
-                const reader = connection.readable.getReader();
-                const encoder = new TextEncoder();
-                const decoder = new TextDecoder();
-
-                // 读取用户输入的WiFi信息
-                const wifiSSID = document.getElementById('wifi_id').value;
-                const wifiPassword = document.getElementById('password').value;
-
-                // 构造AT指令
-                const command = `AT+CWJAP_CUR="${wifiSSID}","${wifiPassword}"\r\n`;
+                // 构建AT指令
+                const command = `AT+CWJAP_DEF="${ssid}","${password}"\r\n`;
 
                 // 发送AT指令
-                const encodedCommand = encoder.encode(command);
-                const writeResult = await connection.writable.write(encodedCommand);
-                console.log('Command written:', writeResult);
+                const encoder = new TextEncoder();
+                await port.writable.write(encoder.encode(command));
 
                 // 读取响应
-                const readResult = await reader.read();
-                console.log('Response read:', decoder.decode(readResult.value));
+                const reader = port.readable.getReader();
+                let response = '';
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    response += new TextDecoder().decode(value);
+                }
 
-                // 关闭连接
+                // 打印ESP32的响应
+                console.log('ESP32 Response:', response);
+
+                // 关闭端口
                 await port.close();
+
+                alert('WiFi configuration sent. Check ESP32 for results.');
             } catch (error) {
-                console.error('Error connecting to ESP32:', error);
+                console.error('Error configuring WiFi:', error);
+                alert('Error configuring WiFi: ' + error.message);
             }
         }
     </script>
 </head>
 <body>
-    <h1>ESP32 配网</h1>
-    <form id="form">
-        <label for="wifi_id">WiFi SSID:</label>
-        <input type="text" id="wifi_id" name="wifi_id" required><br><br>
-        <label for="password">密码:</label>
-        <input type="password" id="password" name="password" required><br><br>
-        <input type="submit" value="配网">
-    </form>
+    <h1>ESP32 WiFi Configuration</h1>
+    <label for="ssid">SSID:</label>
+    <input type="text" id="ssid" name="ssid" required><br><br>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required><br><br>
+    <button id="configure">Configure WiFi</button>
 </body>
 </html>
