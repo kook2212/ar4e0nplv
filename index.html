@@ -10,12 +10,16 @@
 
         async function configureWiFi() {
             try {
-                // 弹出端口选择对话框
+                // 请求串行端口
                 const port = await navigator.serial.requestPort();
                 
                 // 打开端口
                 await port.open({ baudRate: 115200 });
                 
+                if (!port.writable) {
+                    throw new Error('Writable stream is not available.');
+                }
+
                 // 获取用户输入的WiFi信息
                 const ssid = document.getElementById('ssid').value;
                 const password = document.getElementById('password').value;
@@ -25,9 +29,10 @@
 
                 // 发送AT指令
                 const encoder = new TextEncoder();
-                await port.writable.write(encoder.encode(command));
+                const encodedCommand = encoder.encode(command);
+                await port.writable.write(encodedCommand);
 
-                // 读取响应
+                // 读取响应（根据ESP32的实际响应情况调整）
                 const reader = port.readable.getReader();
                 let response = '';
                 while (true) {
@@ -35,14 +40,12 @@
                     if (done) break;
                     response += new TextDecoder().decode(value);
                 }
-
-                // 打印ESP32的响应
                 console.log('ESP32 Response:', response);
 
                 // 关闭端口
                 await port.close();
 
-                alert('WiFi configuration sent. Check ESP32 for results.');
+                alert('WiFi configuration sent.');
             } catch (error) {
                 console.error('Error configuring WiFi:', error);
                 alert('Error configuring WiFi: ' + error.message);
@@ -53,9 +56,11 @@
 <body>
     <h1>ESP32 WiFi Configuration</h1>
     <label for="ssid">SSID:</label>
-    <input type="text" id="ssid" name="ssid" required><br><br>
+    <input type="text" id="ssid" name="ssid" required>
+    <br><br>
     <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required><br><br>
+    <input type="password" id="password" name="password" required>
+    <br><br>
     <button id="configure">Configure WiFi</button>
 </body>
 </html>
