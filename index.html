@@ -2,28 +2,43 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ESP32 Wi-Fi Configurator</title>
+<title>ESP32 Wi-Fi Configurator with Monitor</title>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('connectButton').addEventListener('click', async function() {
+    const connectButton = document.getElementById('connectButton');
+    const ssidInput = document.getElementById('ssid');
+    const passwordInput = document.getElementById('password');
+    const monitorTextarea = document.getElementById('monitorTextarea');
+    let serialPort;
+
+    connectButton.addEventListener('click', async function() {
         try {
-            const {value: ssid} = document.getElementById('ssid');
-            const {value: password} = document.getElementById('password');
-            const port = await navigator.serial.requestPort({ filters: [] });
-            await port.open({ baudRate: 115200 });
-            const encoder = new TextEncoder();
-            const command = `AT+CONFIG=wifi,ssid,${ssid};password,${password}\n`;
-            const writeBuffer = encoder.encode(command);
-            console.log('Sending command:', command);
-            await port.write(writeBuffer);
-            console.log('Wi-Fi configuration command sent successfully.');
-            // Optionally, add a listener for the 'datareceived' event to read responses from the ESP32
-            port.on('datareceived', event => {
-                console.log('Received data:', new Uint8Array(event.data));
+            serialPort = await navigator.serial.requestPort();
+            await serialPort.open({ baudRate: 115200 });
+            console.log('Port opened successfully');
+            
+            // Monitor incoming data from ESP32
+            const decoder = new TextDecoder();
+            serialPort.on('datareceived', event => {
+                const data = decoder.decode(event.data);
+                monitorTextarea.value += data; // Append incoming data to textarea
             });
+
+            // Send configuration command to ESP32
+            const encoder = new TextEncoder();
+            const ssid = ssidInput.value;
+            const password = passwordInput.value;
+            const command = `AT+CONFIG=wifi,ssid,${ssid};password,${password}\n`;
+            await serialPort.write(encoder.encode(command));
+            console.log('Configuration command sent');
         } catch (error) {
-            console.error('Error occurred:', error);
+            console.error('Error:', error);
         }
+    });
+
+    // Function to clear the monitor textarea
+    document.getElementById('clearButton').addEventListener('click', function() {
+        monitorTextarea.value = '';
     });
 });
 </script>
@@ -36,6 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <label for="password">Password:</label>
     <input type="password" id="password" name="password" required><br>
     <button type="button" id="connectButton">Connect and Configure</button>
+    <button type="button" id="clearButton">Clear Monitor</button>
 </form>
+<h2>Monitor</h2>
+<textarea id="monitorTextarea" rows="10" cols="50" readonly></textarea>
 </body>
 </html>
