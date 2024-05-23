@@ -11,8 +11,8 @@
         portSelect.innerHTML = ""; // 清空選項列表
         ports.forEach(port => {
           const option = document.createElement("option");
-          option.value = port.path;
-          option.text = port.path;
+          option.value = port;
+          option.text = port.getInfo().usbVendorId + ":" + port.getInfo().usbProductId;
           portSelect.add(option);
         });
       } catch (error) {
@@ -31,7 +31,8 @@
       }
     }
 
-    async function connectToESP32() {
+    async function connectToESP32(event) {
+      event.preventDefault();
       try {
         const port = await requestPort();
         const writer = port.writable.getWriter();
@@ -58,11 +59,16 @@
         console.error("Error during connection: ", error);
       }
     }
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+      document.getElementById("refreshPorts").addEventListener("click", getPorts);
+      document.getElementById("form").addEventListener("submit", connectToESP32);
+    });
   </script>
 </head>
 <body>
   <h1>ESP32 配网</h1>
-  <form onsubmit="connectToESP32(); return false;">
+  <form id="form">
     <label for="wifi_id">WiFi ID:</label>
     <input type="text" id="wifi_id" name="wifi_id" required><br><br>
     <label for="password">密码:</label>
@@ -71,6 +77,6 @@
     <select id="port" name="port" required></select><br><br>
     <input type="submit" value="配网">
   </form>
-  <button onclick="getPorts()">刷新端口列表</button>
+  <button id="refreshPorts">刷新端口列表</button>
 </body>
 </html>
