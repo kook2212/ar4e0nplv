@@ -8,6 +8,7 @@
       try {
         const ports = await navigator.serial.getPorts();
         const portSelect = document.getElementById("port");
+        portSelect.innerHTML = ""; // 清空選項列表
         ports.forEach(port => {
           const option = document.createElement("option");
           option.value = port.path;
@@ -19,13 +20,20 @@
       }
     }
 
-    getPorts();
-
-    async function connectToESP32() {
+    async function requestPort() {
       try {
         const port = await navigator.serial.requestPort();
         await port.open({ baudRate: 115200 });
-        
+        return port;
+      } catch (error) {
+        console.error("Error requesting port: ", error);
+        throw error;
+      }
+    }
+
+    async function connectToESP32() {
+      try {
+        const port = await requestPort();
         const writer = port.writable.getWriter();
         const wifi_id = document.getElementById("wifi_id").value;
         const password = document.getElementById("password").value;
@@ -63,5 +71,6 @@
     <select id="port" name="port" required></select><br><br>
     <input type="submit" value="配网">
   </form>
+  <button onclick="getPorts()">刷新端口列表</button>
 </body>
 </html>
