@@ -10,44 +10,44 @@
 
         async function configureWiFi() {
             try {
-                // 请求串行端口
                 const port = await navigator.serial.requestPort();
-                
-                // 打开端口
+                console.log('Port requested:', port);
+
                 const options = { baudRate: 115200 };
                 await port.open(options);
-                
-                // 确认端口已打开
+                console.log('Port opened:', port.readable, port.writable);
+
                 if (!(port.readable && port.writable)) {
                     throw new Error('Failed to open the port properly.');
                 }
 
-                // 获取用户输入的WiFi信息
                 const ssid = document.getElementById('ssid').value;
                 const password = document.getElementById('password').value;
-
-                // 构建AT指令
                 const command = `AT+CWJAP_DEF="${ssid}","${password}"\r\n`;
+                console.log('Command to send:', command);
 
-                // 发送AT指令
                 const encoder = new TextEncoder();
                 const encodedCommand = encoder.encode(command);
                 await port.writable.write(encodedCommand);
+                console.log('Command sent.');
 
-                // 读取响应（根据ESP32的实际响应情况调整）
+                // 等待一些时间以确保ESP32处理指令
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // 读取响应
                 const reader = port.readable.getReader();
                 let response = '';
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     response += new TextDecoder().decode(value);
+                    console.log('Received from ESP32:', response);
                 }
-                console.log('ESP32 Response:', response);
 
-                // 关闭端口
                 await port.close();
+                console.log('Port closed.');
 
-                alert('WiFi configuration sent.');
+                alert('WiFi configuration sent and response received.');
             } catch (error) {
                 console.error('Error configuring WiFi:', error);
                 if (port) {
