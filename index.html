@@ -6,15 +6,24 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('connectButton').addEventListener('click', async function() {
-        const {value: ssid} = document.getElementById('ssid');
-        const {value: password} = document.getElementById('password');
-        const response = await navigator.serial.requestPort();
-        await response.open({baudRate: 115200});
-        const encoder = new TextEncoder();
-        const command = `AT+CONFIG=wifi,ssid,${ssid};password,${password}\n`;
-        await response.write(encoder.encode(command));
-        console.log('Wi-Fi configuration command sent:', command);
-        await response.close();
+        try {
+            const {value: ssid} = document.getElementById('ssid');
+            const {value: password} = document.getElementById('password');
+            const port = await navigator.serial.requestPort({ filters: [] });
+            await port.open({ baudRate: 115200 });
+            const encoder = new TextEncoder();
+            const command = `AT+CONFIG=wifi,ssid,${ssid};password,${password}\n`;
+            const writeBuffer = encoder.encode(command);
+            console.log('Sending command:', command);
+            await port.write(writeBuffer);
+            console.log('Wi-Fi configuration command sent successfully.');
+            // Optionally, add a listener for the 'datareceived' event to read responses from the ESP32
+            port.on('datareceived', event => {
+                console.log('Received data:', new Uint8Array(event.data));
+            });
+        } catch (error) {
+            console.error('Error occurred:', error);
+        }
     });
 });
 </script>
