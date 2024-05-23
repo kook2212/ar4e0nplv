@@ -14,10 +14,12 @@
                 const port = await navigator.serial.requestPort();
                 
                 // 打开端口
-                await port.open({ baudRate: 115200 });
+                const options = { baudRate: 115200 };
+                await port.open(options);
                 
-                if (!port.writable) {
-                    throw new Error('Writable stream is not available.');
+                // 确认端口已打开
+                if (!(port.readable && port.writable)) {
+                    throw new Error('Failed to open the port properly.');
                 }
 
                 // 获取用户输入的WiFi信息
@@ -48,6 +50,9 @@
                 alert('WiFi configuration sent.');
             } catch (error) {
                 console.error('Error configuring WiFi:', error);
+                if (port) {
+                    await port.close();
+                }
                 alert('Error configuring WiFi: ' + error.message);
             }
         }
