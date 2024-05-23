@@ -1,59 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 WiFi Configurator with WebUSB</title>
+<meta charset="UTF-8">
+<title>ESP32 Wi-Fi Configurator</title>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('connectButton').addEventListener('click', async function() {
+        const {value: ssid} = document.getElementById('ssid');
+        const {value: password} = document.getElementById('password');
+        const response = await navigator.serial.requestPort();
+        await response.open({baudRate: 115200});
+        const encoder = new TextEncoder();
+        const command = `AT+CONFIG=wifi,ssid,${ssid};password,${password}\n`;
+        await response.write(encoder.encode(command));
+        console.log('Wi-Fi configuration command sent:', command);
+        await response.close();
+    });
+});
+</script>
 </head>
 <body>
-    <h1>ESP32 WiFi Configurator</h1>
-    <form id="wifiConfigForm">
-        <label for="ssid">SSID:</label>
-        <input type="text" id="ssid" name="ssid" required>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-        <button type="button" onclick="configureWiFi()">Configure WiFi</button>
-    </form>
-
-    <script>
-        async function configureWiFi() {
-            const ssid = document.getElementById('ssid').value;
-            const password = document.getElementById('password').value;
-            const configCommand = `at+config=wifi,ssid,${encodeURIComponent(ssid)};password,${encodeURIComponent(password)}`;
-
-            try {
-                const device = await navigator.usb.requestDevice({
-                    filters: [
-                        { 'vendorId': 0x1a86, 'productId': 0x7523 }
-                    ]
-                });
-
-                // 打开设备
-                const deviceHandle = await device.open();
-
-                // 选择配置描述符
-                const configurationDescriptor = device.configurations[0];
-                const interfaceNumber = 0; // 通常为0，但可能需要根据你的设备调整
-                const alternateSetting = 0; // 通常为0，但可能需要根据你的设备调整
-
-                // 选择接口
-                await deviceHandle.selectConfiguration(configurationDescriptor);
-                await deviceHandle.claimInterface(interfaceNumber);
-
-                // 找到端点
-                const endpoint = deviceHandle.endpoint(0); // 端点号，根据你的ESP32设备调整
-
-                // 发送配置命令
-                const buffer = new TextEncoder().encode(configCommand + '\n');
-                await endpoint.transferOut(buffer);
-
-                console.log('Configuration command sent:', configCommand);
-                alert('Configuration command sent to ESP32.');
-            } catch (error) {
-                console.error('Error configuring WiFi:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-    </script>
+<h1>ESP32 Wi-Fi Configurator</h1>
+<form>
+    <label for="ssid">SSID:</label>
+    <input type="text" id="ssid" name="ssid" required><br>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required><br>
+    <button type="button" id="connectButton">Connect and Configure</button>
+</form>
 </body>
 </html>
