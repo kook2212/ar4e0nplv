@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 配网</title>
+  <meta charset="UTF-8">
+  <script>
+    async function getPorts() {
+      try {
+        const ports = await navigator.serial.getPorts();
+        const portSelect = document.getElementById("port");
+        ports.forEach(port => {
+          const option = document.createElement("option");
+          option.value = port.path;
+          option.text = port.path;
+          portSelect.add(option);
+        });
+      } catch (error) {
+        console.error("Error getting ports: ", error);
+      }
+    }
+
+    getPorts();
+
+    async function connectToESP32() {
+      try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        
+        const writer = port.writable.getWriter();
+        const wifi_id = document.getElementById("wifi_id").value;
+        const password = document.getElementById("password").value;
+        const command = `at+config=wifi,ssid,${wifi_id};password,${password}`;
+        
+        await writer.write(new TextEncoder().encode(command + "\r\n"));
+        
+        const reader = port.readable.getReader();
+        const { value, done } = await reader.read();
+        
+        if (done) {
+          console.log("Stream closed");
+        } else {
+          const response = new TextDecoder().decode(value);
+          console.log(response);
+        }
+        
+        reader.releaseLock();
+        writer.releaseLock();
+        await port.close();
+      } catch (error) {
+        console.error("Error during connection: ", error);
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>ESP32 配网</h1>
+  <form onsubmit="connectToESP32(); return false;">
+    <label for="wifi_id">WiFi ID:</label>
+    <input type="text" id="wifi_id" name="wifi_id" required><br><br>
+    <label for="password">密码:</label>
+    <input type="password" id="password" name="password" required><br><br>
+    <label for="port">USB 端口:</label>
+    <select id="port" name="port" required></select><br><br>
+    <input type="submit" value="配网">
+  </form>
+</body>
+</html>
