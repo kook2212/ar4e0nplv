@@ -2,70 +2,58 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ESP32 WiFi Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 WiFi Configurator with WebUSB</title>
+</head>
+<body>
+    <h1>ESP32 WiFi Configurator</h1>
+    <form id="wifiConfigForm">
+        <label for="ssid">SSID:</label>
+        <input type="text" id="ssid" name="ssid" required>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <button type="button" onclick="configureWiFi()">Configure WiFi</button>
+    </form>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('configure').addEventListener('click', configureWiFi);
-        });
-
         async function configureWiFi() {
+            const ssid = document.getElementById('ssid').value;
+            const password = document.getElementById('password').value;
+            const configCommand = `at+config=wifi,ssid,${encodeURIComponent(ssid)};password,${encodeURIComponent(password)}`;
+
             try {
-                const port = await navigator.serial.requestPort();
-                console.log('Port requested:', port);
+                const device = await navigator.usb.requestDevice({
+                    filters: [
+                        { 'vendorId': 0x1a86, 'productId': 0x7523 }
+                    ]
+                });
 
-                const options = { baudRate: 115200 };
-                await port.open(options);
-                console.log('Port opened:', port.readable, port.writable);
+                // 打开设备
+                const deviceHandle = await device.open();
 
-                if (!(port.readable && port.writable)) {
-                    throw new Error('Failed to open the port properly.');
-                }
+                // 选择配置描述符
+                const configurationDescriptor = device.configurations[0];
+                const interfaceNumber = 0; // 通常为0，但可能需要根据你的设备调整
+                const alternateSetting = 0; // 通常为0，但可能需要根据你的设备调整
 
-                const ssid = document.getElementById('ssid').value;
-                const password = document.getElementById('password').value;
-                const command = `AT+CWJAP_DEF="${ssid}","${password}"\r\n`;
-                console.log('Command to send:', command);
+                // 选择接口
+                await deviceHandle.selectConfiguration(configurationDescriptor);
+                await deviceHandle.claimInterface(interfaceNumber);
 
-                const encoder = new TextEncoder();
-                const encodedCommand = encoder.encode(command);
-                await port.writable.write(encodedCommand);
-                console.log('Command sent.');
+                // 找到端点
+                const endpoint = deviceHandle.endpoint(0); // 端点号，根据你的ESP32设备调整
 
-                // 等待一些时间以确保ESP32处理指令
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // 发送配置命令
+                const buffer = new TextEncoder().encode(configCommand + '\n');
+                await endpoint.transferOut(buffer);
 
-                // 读取响应
-                const reader = port.readable.getReader();
-                let response = '';
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    response += new TextDecoder().decode(value);
-                    console.log('Received from ESP32:', response);
-                }
-
-                await port.close();
-                console.log('Port closed.');
-
-                alert('WiFi configuration sent and response received.');
+                console.log('Configuration command sent:', configCommand);
+                alert('Configuration command sent to ESP32.');
             } catch (error) {
                 console.error('Error configuring WiFi:', error);
-                if (port) {
-                    await port.close();
-                }
-                alert('Error configuring WiFi: ' + error.message);
+                alert('Error: ' + error.message);
             }
         }
     </script>
-</head>
-<body>
-    <h1>ESP32 WiFi Configuration</h1>
-    <label for="ssid">SSID:</label>
-    <input type="text" id="ssid" name="ssid" required>
-    <br><br>
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
-    <br><br>
-    <button id="configure">Configure WiFi</button>
 </body>
 </html>
