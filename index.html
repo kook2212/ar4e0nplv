@@ -1,82 +1,72 @@
-<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>ESP32 配网</title>
-  <meta charset="UTF-8">
-  <script>
-    async function getPorts() {
-      try {
-        const ports = await navigator.serial.getPorts();
-        const portSelect = document.getElementById("port");
-        portSelect.innerHTML = ""; // 清空選項列表
-        ports.forEach(port => {
-          const option = document.createElement("option");
-          option.value = port;
-          option.text = port.getInfo().usbVendorId + ":" + port.getInfo().usbProductId;
-          portSelect.add(option);
+    <meta charset="UTF-8">
+    <title>ESP32 配网</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('form').addEventListener('submit', function(event) {
+                event.preventDefault(); // 阻止表单默认提交行为
+                getPorts().then(ports => {
+                    if (ports.length > 0) {
+                        const port = ports[0]; // 选择第一个端口
+                        connectToESP32(port);
+                    } else {
+                        console.log('No serial ports found.');
+                    }
+                }).catch(error => {
+                    console.error('Error accessing serial ports:', error);
+                });
+            });
         });
-      } catch (error) {
-        console.error("Error getting ports: ", error);
-      }
-    }
 
-    async function requestPort() {
-      try {
-        const port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 115200 });
-        return port;
-      } catch (error) {
-        console.error("Error requesting port: ", error);
-        throw error;
-      }
-    }
-
-    async function connectToESP32(event) {
-      event.preventDefault();
-      try {
-        const port = await requestPort();
-        const writer = port.writable.getWriter();
-        const wifi_id = document.getElementById("wifi_id").value;
-        const password = document.getElementById("password").value;
-        const command = `at+config=wifi,ssid,${wifi_id};password,${password}`;
-        
-        await writer.write(new TextEncoder().encode(command + "\r\n"));
-        
-        const reader = port.readable.getReader();
-        const { value, done } = await reader.read();
-        
-        if (done) {
-          console.log("Stream closed");
-        } else {
-          const response = new TextDecoder().decode(value);
-          console.log(response);
+        async function getPorts() {
+            try {
+                return await navigator.serial.getPorts();
+            } catch (error) {
+                throw error;
+            }
         }
-        
-        reader.releaseLock();
-        writer.releaseLock();
-        await port.close();
-      } catch (error) {
-        console.error("Error during connection: ", error);
-      }
-    }
 
-    document.addEventListener('DOMContentLoaded', (event) => {
-      document.getElementById("refreshPorts").addEventListener("click", getPorts);
-      document.getElementById("form").addEventListener("submit", connectToESP32);
-    });
-  </script>
+        async function connectToESP32(port) {
+            try {
+                const options = { baudRate: 115200 };
+                const connection = await port.open(options);
+                const reader = connection.readable.getReader();
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
+
+                // 读取用户输入的WiFi信息
+                const wifiSSID = document.getElementById('wifi_id').value;
+                const wifiPassword = document.getElementById('password').value;
+
+                // 构造AT指令
+                const command = `AT+CWJAP_CUR="${wifiSSID}","${wifiPassword}"\r\n`;
+
+                // 发送AT指令
+                const encodedCommand = encoder.encode(command);
+                const writeResult = await connection.writable.write(encodedCommand);
+                console.log('Command written:', writeResult);
+
+                // 读取响应
+                const readResult = await reader.read();
+                console.log('Response read:', decoder.decode(readResult.value));
+
+                // 关闭连接
+                await port.close();
+            } catch (error) {
+                console.error('Error connecting to ESP32:', error);
+            }
+        }
+    </script>
 </head>
 <body>
-  <h1>ESP32 配网</h1>
-  <form id="form">
-    <label for="wifi_id">WiFi ID:</label>
-    <input type="text" id="wifi_id" name="wifi_id" required><br><br>
-    <label for="password">密码:</label>
-    <input type="password" id="password" name="password" required><br><br>
-    <label for="port">USB 端口:</label>
-    <select id="port" name="port" required></select><br><br>
-    <input type="submit" value="配网">
-  </form>
-  <button id="refreshPorts">刷新端口列表</button>
+    <h1>ESP32 配网</h1>
+    <form id="form">
+        <label for="wifi_id">WiFi SSID:</label>
+        <input type="text" id="wifi_id" name="wifi_id" required><br><br>
+        <label for="password">密码:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <input type="submit" value="配网">
+    </form>
 </body>
 </html>
