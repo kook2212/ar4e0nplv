@@ -41,9 +41,19 @@
             100% { transform: rotate(360deg); }
         }
         .game-container {
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .game-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
     </style>
 </head>
@@ -53,14 +63,13 @@
     </div>
     <div class="game-container">
         <iframe src="https://www.spatial.io/embed/hklss-R05-Yuan-Yu-Zhou-6655f74ec09ba33407260ef0?share=7205130941904465268&autoplay=1&enableRtc=1"
-            width="1920px" height="1080px" allow="camera; fullscreen; autoplay; display-capture; microphone; clipboard-write"></iframe>
+            allow="camera; fullscreen; autoplay; display-capture; microphone; clipboard-write"></iframe>
     </div>
 
     <script>
-        // 等待6秒後隱藏進入畫面，顯示遊戲
+        // 等待6秒後隱藏進入畫面
         setTimeout(function() {
             document.querySelector('.loading-screen').style.display = 'none';
-            document.querySelector('.game-container').style.display = 'block';
         }, 6000);
     </script>
 </body>
